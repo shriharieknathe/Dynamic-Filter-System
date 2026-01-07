@@ -11,10 +11,7 @@ function getInitialMode(): ThemeMode {
   } catch {
     // ignore
   }
-  // Check system preference
-  if (window.matchMedia?.('(prefers-color-scheme: light)').matches) {
-    return 'light';
-  }
+  // Default to dark mode
   return 'dark';
 }
 
@@ -35,4 +32,3 @@ export function useThemeMode() {
 
   return { mode, toggleMode };
 }
-
