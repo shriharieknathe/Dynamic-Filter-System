@@ -9,6 +9,7 @@ function matchText(fieldValue: unknown, operator: FilterOperator, filterValue: F
     return false;
   }
 
+  // Case-insensitive comparison
   const textValue = String(fieldValue).toLowerCase();
   const searchValue = String(filterValue ?? '').toLowerCase();
 
@@ -38,6 +39,7 @@ function matchNumber(fieldValue: unknown, operator: FilterOperator, filterValue:
   const numValue = Number(fieldValue);
   if (isNaN(numValue)) return false;
 
+  // "between" operator expects [min, max] array
   if (operator === 'between' && Array.isArray(filterValue)) {
     const [min, max] = filterValue.map(Number);
     if (isNaN(min) || isNaN(max)) return false;
@@ -70,6 +72,7 @@ function matchDate(fieldValue: unknown, operator: FilterOperator, filterValue: F
     return false;
   }
 
+  // Convert to timestamp for comparison
   const dateValue = new Date(fieldValue as string).getTime();
   if (isNaN(dateValue)) return false;
 
@@ -98,6 +101,7 @@ function matchBoolean(fieldValue: unknown, operator: FilterOperator, filterValue
   if (fieldValue === null || fieldValue === undefined) return false;
 
   const boolValue = Boolean(fieldValue);
+  // Handle both string "true"/"false" and actual boolean
   const filterBool = filterValue === 'true' || filterValue === true;
 
   return operator === 'is' ? boolValue === filterBool : false;
@@ -126,6 +130,7 @@ function matchMultiSelect(fieldValue: unknown, operator: FilterOperator, filterV
 
   const strValue = String(fieldValue).toLowerCase();
 
+  // Empty filter = no filtering, show all
   if (!Array.isArray(filterValue) || filterValue.length === 0) {
     return true;
   }
@@ -149,6 +154,7 @@ function matchArray(fieldValue: unknown, operator: FilterOperator, filterValue: 
 
   const arrayValue = fieldValue.map((v) => String(v).toLowerCase());
 
+  // Single value search (contains/notContains)
   if (typeof filterValue === 'string') {
     const searchValue = filterValue.toLowerCase();
     switch (operator) {
@@ -161,14 +167,17 @@ function matchArray(fieldValue: unknown, operator: FilterOperator, filterValue: 
     }
   }
 
+  // Multi-value search (hasAny/hasAll)
   if (Array.isArray(filterValue)) {
     if (filterValue.length === 0) return true;
     const searchValues = filterValue.map((v) => String(v).toLowerCase());
 
     switch (operator) {
       case 'hasAny':
+        // Match if ANY of the selected values exist in the array
         return searchValues.some((v) => arrayValue.includes(v));
       case 'hasAll':
+        // Match only if ALL selected values exist in the array
         return searchValues.every((v) => arrayValue.includes(v));
       default:
         return false;
@@ -209,6 +218,7 @@ function matchValue(
 
 // --- Filter Engine ---
 
+// Skip filters with empty/null values
 function hasValidValue(condition: FilterCondition): boolean {
   const { value } = condition;
   if (value === null || value === undefined) return false;
@@ -218,6 +228,7 @@ function hasValidValue(condition: FilterCondition): boolean {
   return true;
 }
 
+// Group filters by field name for OR logic within same field
 function groupFiltersByField(filters: FilterCondition[]): Map<string, FilterCondition[]> {
   const groups = new Map<string, FilterCondition[]>();
 
@@ -231,7 +242,9 @@ function groupFiltersByField(filters: FilterCondition[]): Map<string, FilterCond
   return groups;
 }
 
-// AND between different fields, OR within same field
+// Main matching logic:
+// - AND between different fields (all field groups must pass)
+// - OR within same field (at least one condition must match)
 function matchesAllFilters<T>(record: T, filterGroups: Map<string, FilterCondition[]>): boolean {
   for (const [field, conditions] of filterGroups) {
     const fieldConfig = fieldConfigMap[field];
@@ -242,6 +255,7 @@ function matchesAllFilters<T>(record: T, filterGroups: Map<string, FilterConditi
       matchValue(fieldValue, c.operator, c.value, fieldConfig.type)
     );
 
+    // If no condition matched for this field, record doesn't pass
     if (!anyMatch) return false;
   }
   return true;

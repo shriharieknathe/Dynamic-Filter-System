@@ -31,11 +31,13 @@ function saveFiltersToStorage(filters: FilterCondition[]): void {
 }
 
 export function useFilters(initialFilters: FilterCondition[] = []) {
+  // Load saved filters from localStorage on first render
   const [filters, setFilters] = useState<FilterCondition[]>(() => {
     const stored = loadFiltersFromStorage();
     return stored.length > 0 ? stored : initialFilters;
   });
 
+  // Persist to localStorage whenever filters change
   useEffect(() => {
     saveFiltersToStorage(filters);
   }, [filters]);
@@ -59,6 +61,7 @@ export function useFilters(initialFilters: FilterCondition[] = []) {
     setFilters((prev) => prev.filter((f) => f.id !== filterId));
   }, []);
 
+  // When field changes, reset operator and value to match new field type
   const updateFilterField = useCallback((filterId: string, newField: string) => {
     setFilters((prev) =>
       prev.map((filter) => {
@@ -79,6 +82,7 @@ export function useFilters(initialFilters: FilterCondition[] = []) {
     );
   }, []);
 
+  // Reset value when switching to/from "between" operator (different input type)
   const updateFilterOperator = useCallback((filterId: string, newOperator: FilterOperator) => {
     setFilters((prev) =>
       prev.map((filter) => {
